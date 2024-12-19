@@ -1,16 +1,13 @@
-﻿// Load required modules
-const http = require("http");                 // http server core module
-const path = require("path");
-const express = require("express");           // web framework external module
-const socketIo = require("socket.io");        // web socket external module
-const easyrtc = require("open-easyrtc");      // EasyRTC external module
+﻿const express = require("express");
+const path = require("node:path");
+const http = require("node:http");
 // To generate a certificate for local development with https, you can use
 // npx webpack serve --server-type https
 // and stop it with ctrl+c, it will generate the file node_modules/.cache/webpack-dev-server/server.pem
 // Then to enable https on the node server, uncomment the next lines
 // and the webServer line down below.
-// const https = require("https");
-// const fs = require("fs");
+// const https = require("node:https");
+// const fs = require("node:fs");
 // const privateKey = fs.readFileSync("node_modules/.cache/webpack-dev-server/server.pem", "utf8");
 // const certificate = fs.readFileSync("node_modules/.cache/webpack-dev-server/server.pem", "utf8");
 // const credentials = { key: privateKey, cert: certificate };
@@ -20,6 +17,9 @@ process.title = "networked-aframe-server";
 
 // Get port or default to 8080
 const port = process.env.PORT || 8080;
+
+// Threshold for instancing a room
+const maxOccupantsInRoom = 50;
 
 // Setup and configure Express http server.
 const app = express();
@@ -32,7 +32,7 @@ if (process.env.NODE_ENV === "development") {
 
   app.use(
     webpackMiddleware(webpack(config), {
-      publicPath: "/dist/"
+      publicPath: "/dist"
     })
   );
 }
@@ -44,61 +44,98 @@ app.use(express.static(__dirname + '/public'));
 const webServer = http.createServer(app);
 // To enable https on the node server, comment the line above and uncomment the line below
 // const webServer = https.createServer(credentials, app);
+const io = require("socket.io")(webServer);
 
-// Start Socket.io so it attaches itself to Express server
-const socketServer = socketIo.listen(webServer, {"log level": 1});
-const myIceServers = [
-  {"urls":"stun:stun1.l.google.com:19302"},
-  {"urls":"stun:stun2.l.google.com:19302"},
-  // {
-  //   "urls":"turn:[ADDRESS]:[PORT]",
-  //   "username":"[USERNAME]",
-  //   "credential":"[CREDENTIAL]"
-  // },
-  // {
-  //   "urls":"turn:[ADDRESS]:[PORT][?transport=tcp]",
-  //   "username":"[USERNAME]",
-  //   "credential":"[CREDENTIAL]"
-  // }
-];
-easyrtc.setOption("appIceServers", myIceServers);
-easyrtc.setOption("logLevel", "debug");
-easyrtc.setOption("demosEnable", false);
+const rooms = new Map();
 
-// Overriding the default easyrtcAuth listener, only so we can directly access its callback
-easyrtc.events.on("easyrtcAuth", (socket, easyrtcid, msg, socketCallback, callback) => {
-    easyrtc.events.defaultListeners.easyrtcAuth(socket, easyrtcid, msg, socketCallback, (err, connectionObj) => {
-        if (err || !msg.msgData || !msg.msgData.credential || !connectionObj) {
-            callback(err, connectionObj);
-            return;
+io.on("connection", (socket) => {
+  console.log("user connected", socket.id);
+
+  let curRoom = null;
+
+  socket.on("joinRoom", (data) => {
+    const { room } = data;
+
+    curRoom = room;
+    let roomInfo = rooms.get(room);
+    if (!roomInfo) {
+      roomInfo = {
+        name: room,
+        occupants: {},
+        occupantsCount: 0
+      };
+      rooms.set(room, roomInfo);
+    }
+
+    if (roomInfo.occupantsCount >= maxOccupantsInRoom) {
+      // If room is full, search for spot in other instances
+      let availableRoomFound = false;
+      const roomPrefix = `${room}--`;
+      let numberOfInstances = 1;
+      for (const [roomName, roomData] of rooms.entries()) {
+        if (roomName.startsWith(roomPrefix)) {
+          numberOfInstances++;
+          if (roomData.occupantsCount < maxOccupantsInRoom) {
+            availableRoomFound = true;
+            curRoom = roomName;
+            roomInfo = roomData;
+            break;
+          }
         }
+      }
 
-        connectionObj.setField("credential", msg.msgData.credential, {"isShared":false});
+      if (!availableRoomFound) {
+        // No available room found, create a new one
+        const newRoomNumber = numberOfInstances + 1;
+        curRoom = `${roomPrefix}${newRoomNumber}`;
+        roomInfo = {
+          name: curRoom,
+          occupants: {},
+          occupantsCount: 0
+        };
+        rooms.set(curRoom, roomInfo);
+      }
+    }
 
-        console.log("["+easyrtcid+"] Credential saved!", connectionObj.getFieldValueSync("credential"));
+    const joinedTime = Date.now();
+    roomInfo.occupants[socket.id] = joinedTime;
+    roomInfo.occupantsCount++;
 
-        callback(err, connectionObj);
-    });
+    console.log(`${socket.id} joined room ${curRoom}`);
+    socket.join(curRoom);
+
+    socket.emit("connectSuccess", { joinedTime });
+    const occupants = roomInfo.occupants;
+    io.in(curRoom).emit("occupantsChanged", { occupants });
+  });
+
+  socket.on("send", (data) => {
+    io.to(data.to).emit("send", data);
+  });
+
+  socket.on("broadcast", (data) => {
+    socket.to(curRoom).emit("broadcast", data);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("disconnected: ", socket.id, curRoom);
+    const roomInfo = rooms.get(curRoom);
+    if (roomInfo) {
+      console.log("user disconnected", socket.id);
+
+      delete roomInfo.occupants[socket.id];
+      roomInfo.occupantsCount--;
+      const occupants = roomInfo.occupants;
+      socket.to(curRoom).emit("occupantsChanged", { occupants });
+
+      if (roomInfo.occupantsCount === 0) {
+        console.log("everybody left room");
+        rooms.delete(curRoom);
+      }
+    }
+  });
 });
 
-// To test, lets print the credential to the console for every room join!
-easyrtc.events.on("roomJoin", (connectionObj, roomName, roomParameter, callback) => {
-    console.log("["+connectionObj.getEasyrtcid()+"] Credential retrieved!", connectionObj.getFieldValueSync("credential"));
-    easyrtc.events.defaultListeners.roomJoin(connectionObj, roomName, roomParameter, callback);
-});
-
-// Start EasyRTC server
-easyrtc.listen(app, socketServer, null, (err, rtcRef) => {
-    console.log("Initiated");
-
-    rtcRef.events.on("roomCreate", (appObj, creatorConnectionObj, roomName, roomOptions, callback) => {
-        console.log("roomCreate fired! Trying to create: " + roomName);
-
-        appObj.events.defaultListeners.roomCreate(appObj, creatorConnectionObj, roomName, roomOptions, callback);
-    });
-});
-
-// Listen on port
 webServer.listen(port, () => {
-    console.log("listening on http://localhost:" + port);
+  console.log("listening on http://localhost:" + port);
 });
