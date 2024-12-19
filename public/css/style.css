@@ -1,0 +1,40 @@
+﻿ /* Стили для счетчика и таймера */
+ .UI_Interface{
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #hud {
+    position: absolute;
+    top: 8px;
+    width: 16%;
+    height: 10%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 32px;
+    z-index: 1;
+    user-select:none;
+    background-color: rgba(71, 71, 71, 0.463);
+    border-radius: 10px;
+  }
+  #score, #timer {
+    margin: 0 16px;
+    user-select:none;
+  }
+  .score{
+    height: 32px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
+  #timer{
+    margin-left: -1px;
+  }

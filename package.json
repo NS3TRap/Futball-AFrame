@@ -1,0 +1,21 @@
+{
+  "name": "gggggg",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@c-frame/aframe-physics-system": "^4.2.2",
+    "aframe": "^1.6.0",
+    "aframe-extras": "^7.5.1",
+    "easyrtc": "^1.1.0",
+    "express": "^4.21.2",
+    "networked-aframe": "^0.12.5",
+    "socket.io": "^2.5.0"
+  }
+}

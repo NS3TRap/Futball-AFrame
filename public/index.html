@@ -1,0 +1,176 @@
+﻿<html>
+  <head>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.5.0/socket.io.slim.js"></script>
+    <script src="/easyrtc/easyrtc.js"></script>
+    <script src="https://unpkg.com/networked-aframe@^0.12.0/dist/networked-aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-randomizer-components@3.0.2/dist/aframe-randomizer-components.min.js"></script>
+    <script src="js\aframe-extras.min.js"></script>
+    <script src="js\aframe-physics-system.min.js"></script>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style_overlay.css">
+    <script>
+      // see issue https://github.com/networked-aframe/networked-aframe/issues/267
+      NAF.schemas.getComponentsOriginal = NAF.schemas.getComponents;
+      NAF.schemas.getComponents = (template) => {
+        if (!NAF.schemas.hasTemplate('#avatar-template')) {
+          NAF.schemas.add({
+            template: '#avatar-template',
+            components: [
+              {
+                component: 'position',
+                requiresNetworkUpdate: NAF.utils.vectorRequiresUpdate(0.001)
+              },
+              {
+                component: 'rotation',
+                requiresNetworkUpdate: NAF.utils.vectorRequiresUpdate(0.5)
+              },
+              {
+                selector: '.head',
+                component: 'material',
+                property: 'color'
+              }
+            ]
+          });
+        }
+        const components = NAF.schemas.getComponentsOriginal(template);
+        return components;
+      };
+    </script>
+</head>
+  <body>
+    <div class="UI_Interface">
+        <div id="hud">
+          <div class="score">
+            <p style="color:red">RED</p>
+            <p id="score">0:0</p>
+            <p style="color:blue">BLUE</p>
+          </div>
+          <div id="timer">03:00</div>
+        </div>
+      </div>
+
+    <div id="end_game" class="UI_Overlay UI_Overlay__hidden">
+        <div class="UI_Overlay_window">
+          <div id="Draw" class="UI_Overlay_Info UI_Overlay_Info__hidden">
+            <div class="Info_img">
+              <img alt="" class="img__size" src="img\RedTeam.png">
+            </div>
+            <div class="Info_text Info_text__draw">DRAW</div>
+            <div class="Info_img blue_img">
+              <img class="img__reverse img__size" alt="" src="img\BlueTeam.png">
+            </div>
+          </div>
+          <div id="BlueWins" class="UI_Overlay_Info UI_Overlay_Info__hidden">
+            <div class="Info_img blue_img">
+              <img alt="" class="img__size" src="img\BlueTeam.png">
+            </div>
+            <div class="Info_text Info_text__blue">BLUE WINS</div>
+            <div class="Info_img blue_img">
+              <img class="img__reverse img__size" alt="" src="img\BlueTeam.png">
+            </div>
+          </div>
+          <div id="RedWins" class="UI_Overlay_Info UI_Overlay_Info__hidden">
+            <div class="Info_img">
+              <img alt="" class="img__size" src="img\RedTeam.png">
+            </div>
+            <div class="Info_text Info_text__red">RED WINS</div>
+            <div class="Info_img">
+              <img class="img__reverse img__size" alt="" src="img\RedTeam.png">
+            </div>
+          </div>
+        </div>
+    </div>
+    <a-scene networked-scene="
+    app: myApp;
+    room: room1;
+    debug: true;
+    adapter: wseasyrtc;
+    connectOnLoad: true;
+    "
+    renderer="physicallyCorrectLights: true;"
+    physics="debug:false; gravity: -9.8; maxInterval: 0.04; iterations: 20"
+    >
+
+      <a-assets>
+        <template id="avatar-template">
+          <a-entity class="avatar">
+            <a-sphere class="head" scale="0.45 0.5 0.4" random-color></a-sphere>
+            <a-entity class="face" position="0 0.05 0">
+              <a-sphere class="eye" color="#efefef" position="0.16 0.1 -0.35" scale="0.12 0.12 0.12">
+                <a-sphere class="pupil" color="#000" position="0 0 -1" scale="0.2 0.2 0.2"></a-sphere>
+              </a-sphere>
+              <a-sphere class="eye" color="#efefef" position="-0.16 0.1 -0.35" scale="0.12 0.12 0.12">
+                <a-sphere class="pupil" color="#000" position="0 0 -1" scale="0.2 0.2 0.2"></a-sphere>
+              </a-sphere>
+            </a-entity>
+            <a-sphere class="body" position="0 -0.86 0" scale="0.45 0.5 0.4" random-color></a-sphere>
+          </a-entity>
+        </template>
+
+        <template id="ball-template">
+          <a-entity material="src:img\ball.png" class="ball_tpl"
+              src="img\ball.png" geometry="primitive: sphere; radius: 0.3; segmentsWidth: 60"
+              color="white">
+          </a-entity>
+        </template>
+      </a-assets>
+
+      <!-- Поле -->
+      <a-plane position="" rotation="-90 0 0" width="20" height="10" color="green" static-body="sphereRadius: NaN" velocity="" scale="1.293 1.60365 1"></a-plane>
+      <a-entity gltf-model="objects\stadion.gltf" position="0 -0.01 0"></a-entity>
+      <a-box class="wall" position="-12.91889 1.98406 0" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" scale="1 1.95499 3.98581" visible="false"></a-box>
+      <a-box class="wall" position="12.91889 1.98406 0" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" scale="1 1.95499 3.98581" visible="false"></a-box>
+      <a-box class="wall" position="0.0585 1.99016 7.74814" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" rotation="0 90 0" scale="1 2.06372 6.76106" visible="false"></a-box>
+      <a-box class="wall" position="0.0585 1.99016 -7.73123" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" rotation="0 90 0" scale="1 2.06372 6.61447" visible="false"></a-box>
+
+      <!-- Скамейки -->
+      <a-box class="wall" position="-6.31639 0.29777 -7.054" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" visible="false" scale="19.34 0.3 0.24" rotation=""></a-box>
+      <a-box class="wall" position="0.06425 0.298 -7.054" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" visible="false" scale="19.34 0.3 0.24" rotation=""></a-box>
+      <a-box class="wall" position="6.17579 0.298 -7.054" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" visible="false" scale="19.34 0.3 0.24" rotation=""></a-box>
+
+      <!-- Столбы -->
+      <a-cylinder class="wall" position="-12.36507 1.92648 -7.18645" height="2" radius="4" color="white" static-body="sphereRadius: NaN" velocity="" rotation="0 -45 0" scale="" visible="false" geometry="height: 3.79; radius: 0.31"></a-cylinder>
+      <a-cylinder class="wall" position="-12.45242 1.99 7.21071" height="2" radius="4" color="white" static-body="sphereRadius: NaN" velocity="" rotation="0 45 0" scale="" geometry="height: 3.79; radius: 0.31" visible="false"></a-cylinder>
+      <a-cylinder class="wall" position="12.41332 1.99 7.15799" height="2" radius="4" color="white" static-body="sphereRadius: NaN" velocity="" rotation="0 -45 0" scale="" geometry="height: 3.79; radius: 0.31" visible="false"></a-cylinder>
+      <a-cylinder class="wall" position="12.4596 1.99 -7.26489" height="2" radius="4" color="white" static-body="sphereRadius: NaN" velocity="" rotation="0 45 0" scale="" geometry="height: 3.79; radius: 0.31" visible="false"></a-cylinder>
+        
+      <!-- Ворота -->
+      <a-box class="wall" position="-11.58512 0.78407 0.07655" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" visible="false" scale="1 0.75972 0.89018"></a-box>
+      <a-box class="wall" position="-11.08615 0.82161 1.80186" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" rotation="0 -90 0" scale="0.38866 0.837 0.27574" visible="false"></a-box>
+      <a-box class="wall" position="-11.08615 0.82161 -1.80186" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" rotation="0 -90 0" scale="0.38866 0.837 0.27574" visible="false"></a-box>
+
+      <a-box class="wall" position="11.08615 0.82161 1.80186" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" rotation="0 -90 0" scale="0.38866 0.837 0.27574" visible="false"></a-box>
+      <a-box class="wall" position="11.08615 0.82161 -1.80186" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" rotation="0 -90 0" scale="0.38866 0.837 0.27574" visible="false"></a-box>
+      <a-box class="wall" position="11.58512 0.78407 0.07655" width="0.2" height="2" depth="4" color="white" static-body="sphereRadius: NaN" velocity="" visible="false" scale="1 0.75972 0.89018"></a-box>
+
+      <!-- Тригерры -->
+      <a-box id="goalRed" position="-11.09255 0.777 0.063" width="14" height="0.2" depth="0.2" color="white" scale="0.238 7.305 3.33" rotation="0 90 0" visible="false" static-body="sphereRadius: NaN" velocity=""></a-box>
+      <a-box id="goalBlue" position="11.09255 0.777 0.063" width="14" height="0.2" depth="0.2" color="white" scale="0.238 7.305 3.33022" rotation="0 90 0" visible="false" static-body></a-box>
+
+      <a-sky color="#a3edff"></a-sky>
+
+      <a-entity id="rig">
+        <a-entity
+          id="player"
+          networked="template:#avatar-template;attachTemplateToLocal:false;"
+          camera
+          position="0 1.5 0"
+          spawn-in-circle="radius:3"
+          wasd-controls
+          look-controls="pointerLockEnabled: true"
+          collision-check="walls: .wall">
+          <a-sphere class="head" visible="false" scale="0.45 0.5 0.4" random-color></a-sphere>
+          <a-sphere class="body" static-body="shape: auto; mass: 18" position="0 -0.86 0" scale="0.45 0.5 0.4" random-color></a-sphere>
+        </a-entity>
+      </a-entity>
+
+      <a-entity goal-detection class="ball_tpl" material="src:img\ball.png" position="0 1.5 -3" dynamic-body="mass:8" geometry="primitive: sphere; radius: 0.3; segmentsWidth: 60" networked="template:#ball-template;attachTemplateToLocal:false;">
+      </a-entity>
+      
+      <script src="js\football.js"></script>
+      <script src="js\ui-interface.js"></script>
+    </a-scene>
+  </body>
+</html>

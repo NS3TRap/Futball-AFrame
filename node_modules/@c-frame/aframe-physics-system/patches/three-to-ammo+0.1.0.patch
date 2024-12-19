@@ -1,0 +1,13 @@
+diff --git a/node_modules/three-to-ammo/index.js b/node_modules/three-to-ammo/index.js
+index 62df76e..3b9f40c 100644
+--- a/node_modules/three-to-ammo/index.js
++++ b/node_modules/three-to-ammo/index.js
+@@ -662,7 +662,7 @@ const _iterateGeometries = (function() {
+   const inverse = new THREE.Matrix4();
+   const bufferGeometry = new THREE.BufferGeometry();
+   return function(root, options, cb) {
+-    inverse.getInverse(root.matrixWorld);
++    inverse.copy(root.matrixWorld).invert();
+     root.traverse(mesh => {
+       if (
+         mesh.isMesh &&
