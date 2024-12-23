@@ -108,13 +108,6 @@
             <a-sphere class="body" position="0 -0.86 0" scale="0.45 0.5 0.4" random-color></a-sphere>
           </a-entity>
         </template>
-
-        <template id="ball-template">
-          <a-entity material="src:img\ball.png" class="ball_tpl"
-              src="img\ball.png" geometry="primitive: sphere; radius: 0.3; segmentsWidth: 60"
-              color="white">
-          </a-entity>
-        </template>
       </a-assets>
 
       <!-- Поле -->
@@ -156,18 +149,17 @@
           id="player"
           networked="template:#avatar-template;attachTemplateToLocal:false;"
           camera
-          position="0 1.5 0"
+          position="0 1.5 -3"
           spawn-in-circle="radius:3"
           wasd-controls
           look-controls="pointerLockEnabled: true"
           collision-check="walls: .wall">
           <a-sphere class="head" visible="false" scale="0.45 0.5 0.4" random-color></a-sphere>
-          <a-sphere class="body" static-body="shape: auto; mass: 18" position="0 -0.86 0" scale="0.45 0.5 0.4" random-color></a-sphere>
+          <a-sphere class="body player-body" static-body="shape: auto; mass: 18" position="0 -0.86 0" scale="0.45 0.5 0.4" random-color></a-sphere>
         </a-entity>
       </a-entity>
 
-      <a-entity goal-detection class="ball_tpl" material="src:img\ball.png" position="0 1.5 -3" dynamic-body="mass:8" geometry="primitive: sphere; radius: 0.3; segmentsWidth: 60" networked="template:#ball-template;attachTemplateToLocal:false;">
-      </a-entity>
+      <a-sphere goal-detection class="ball_tpl" sync-ball ball-hitbox position="0 1.5 3" dynamic-body="mass:8" material="src:img\ball.png" src="img\ball.png" geometry="primitive: sphere; radius: 0.3; segmentsWidth: 60" color="white"></a-sphere>
       
       <script src="js\football.js"></script>
       <script src="js\ui-interface.js"></script>
